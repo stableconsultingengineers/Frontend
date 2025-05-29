@@ -3,9 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>STABLE CONSULTING ENGINEERS BIM VIEWER</title>
+<title>BIM Details - 3D Construction Details</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <style>
 html {
@@ -488,8 +490,8 @@ body {
 <!-- Home Page -->
 <div id="home-page">
     <div class="detail-header">
-        <h1 class="detail-title">3D Details Library</h1>
-        <p class="info-content">Stable Consulting Engineers 3d Detail Viewer</p>
+        <h1 class="detail-title">3D Construction Details Library</h1>
+        <p class="info-content">Professional BIM models and construction details for architects, engineers, and contractors. Access and share three-dimensional detailed models for enhanced project visualization.</p>
     </div>
 </div>
 <!-- Browse Page -->
@@ -504,14 +506,14 @@ body {
 <div id="upload-page" class="hidden">
     <div class="detail-header">
         <h1 class="detail-title">Upload Custom 3D Details</h1>
-        <p class="info-content">Upload your own 3D models to expand the details library. Supported formats: GLB, OBJ, FBX</p>
+        <p class="info-content">Upload your own 3D models to expand the details library. Supported formats: GLB, GLTF, OBJ, FBX</p>
     </div>
     <div class="upload-section">
         <div class="upload-zone" id="upload-zone">
             <div class="upload-icon">📤</div>
             <h3>Drop 3D models here or click to browse</h3>
-            <p>Supported formats: .glb, .obj, .fbx (Max size: 50MB)</p>
-            <input type="file" id="file-input" style="display: none;" accept=".glb,.obj,.fbx" multiple>
+            <p>Supported formats: .glb, .gltf, .obj, .fbx (Max size: 50MB)</p>
+            <input type="file" id="file-input" style="display: none;" accept=".glb,.gltf,.obj,.fbx" multiple>
         </div>
         <div id="file-preview" class="hidden" style="margin: 1rem 0; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
             <h4 style="margin: 0 0 0.5rem 0; color: #2c5074;">Selected File</h4>
@@ -1155,8 +1157,7 @@ function load3DModel(filePath) {
     fillLight.position.set(-10, -10, -5);
     scene.add(fillLight);
 
-    // 🔥 FIX: Properly construct the model URL
-    // Remove leading slash if present to avoid double slashes
+    // Construct the model URL
     const cleanFilePath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
     const modelUrl = `${CONFIG.API_BASE_URL}/${cleanFilePath}`;
     
@@ -1164,8 +1165,32 @@ function load3DModel(filePath) {
     console.log('📁 Original file path:', filePath);
     console.log('🔧 Backend URL:', CONFIG.API_BASE_URL);
 
-    const loader = new THREE.GLTFLoader();
-    
+    // Determine file extension
+    const extension = filePath.split('.').pop().toLowerCase();
+    console.log('📁 File extension:', extension);
+
+    // Choose appropriate loader based on file extension
+    let loader;
+    switch (extension) {
+        case 'glb':
+        case 'gltf':
+            loader = new THREE.GLTFLoader();
+            console.log('🔧 Using GLTFLoader');
+            break;
+        case 'obj':
+            loader = new THREE.OBJLoader();
+            console.log('🔧 Using OBJLoader');
+            break;
+        case 'fbx':
+            loader = new THREE.FBXLoader();
+            console.log('🔧 Using FBXLoader');
+            break;
+        default:
+            console.error('❌ Unsupported file format:', extension);
+            showModelError(`Unsupported file format: .${extension}`);
+            return;
+    }
+
     // First, check if the file exists by making a HEAD request
     fetch(modelUrl, { method: 'HEAD' })
         .then(response => {
@@ -1177,72 +1202,53 @@ function load3DModel(filePath) {
             
             console.log('✅ File exists, proceeding with 3D loading...');
             
-            // File exists, proceed with loading
-            loader.load(modelUrl, 
-                function(gltf) {
-                    // SUCCESS - Model loaded
-                    console.log('✅ 3D Model loaded successfully');
-                    model = gltf.scene;
-
-                    model.traverse((child) => {
-                        if (child.isMesh && child.material) {
-                            originalMaterials.set(child.uuid, child.material.clone());
-                            if (child.material.map) {
-                                child.material.map.encoding = THREE.sRGBEncoding;
-                            }
-                            child.material.needsUpdate = true;
-                        }
-                    });
-
-                    const box = new THREE.Box3().setFromObject(model);
-                    const size = box.getSize(new THREE.Vector3()).length();
-                    const center = box.getCenter(new THREE.Vector3());
-
-                    model.position.x -= center.x;
-                    model.position.y -= center.y;
-                    model.position.z -= center.z;
-
-                    const scale = 5 / size;
-                    model.scale.setScalar(scale);
-
-                    scene.add(model);
-
-                    const sphere = new THREE.Sphere();
-                    box.setFromObject(model);
-                    box.getBoundingSphere(sphere);
-                    modelBoundingRadius = sphere.radius;
-
-                    const camDist = modelBoundingRadius * 2.5;
-                    camera.position.set(camDist * 0.7, camDist * 0.7, camDist * 0.7);
-                    camera.lookAt(0, 0, 0);
-                    controls.target.set(0, 0, 0);
-                    controls.update();
-
-                    document.getElementById('loading').classList.add('hidden');
-                    canvas.classList.remove('hidden');
-                    
-                    requestAnimationFrame(() => {
-                        requestAnimationFrame(() => {
-                            resizeRenderer();
-                            if (renderer && scene && camera) {
-                                renderer.render(scene, camera);
-                            }
-                        });
-                    });
-                }, 
-                function(progress) {
-                    // PROGRESS
-                    const percentage = progress.lengthComputable ? 
-                        Math.round((progress.loaded / progress.total) * 100) : 
-                        Math.round((progress.loaded / 1024 / 1024)) + 'MB';
-                    console.log('📊 Loading progress:', percentage);
-                }, 
-                function(error) {
-                    // ERROR during 3D loading
-                    console.error('❌ Error loading 3D model:', error);
-                    showModelError('Failed to load 3D model. The file may be corrupted or in an unsupported format.');
-                }
-            );
+            // File exists, proceed with loading based on format
+            if (extension === 'glb' || extension === 'gltf') {
+                // GLTF/GLB Loading
+                loader.load(modelUrl, 
+                    function(gltf) {
+                        console.log('✅ GLTF Model loaded successfully');
+                        handleLoadedModel(gltf.scene);
+                    }, 
+                    function(progress) {
+                        logProgress(progress);
+                    }, 
+                    function(error) {
+                        console.error('❌ Error loading GLTF model:', error);
+                        showModelError('Failed to load GLTF model. The file may be corrupted.');
+                    }
+                );
+            } else if (extension === 'obj') {
+                // OBJ Loading
+                loader.load(modelUrl,
+                    function(object) {
+                        console.log('✅ OBJ Model loaded successfully');
+                        handleLoadedModel(object);
+                    },
+                    function(progress) {
+                        logProgress(progress);
+                    },
+                    function(error) {
+                        console.error('❌ Error loading OBJ model:', error);
+                        showModelError('Failed to load OBJ model. The file may be corrupted.');
+                    }
+                );
+            } else if (extension === 'fbx') {
+                // FBX Loading
+                loader.load(modelUrl,
+                    function(object) {
+                        console.log('✅ FBX Model loaded successfully');
+                        handleLoadedModel(object);
+                    },
+                    function(progress) {
+                        logProgress(progress);
+                    },
+                    function(error) {
+                        console.error('❌ Error loading FBX model:', error);
+                        showModelError('Failed to load FBX model. The file may be corrupted.');
+                    }
+                );
+            }
         })
         .catch(error => {
             // File doesn't exist or network error
@@ -1259,6 +1265,83 @@ function load3DModel(filePath) {
                     showModelError(message);
                 });
         });
+}
+
+// Helper function to handle loaded models regardless of format
+function handleLoadedModel(loadedModel) {
+    model = loadedModel;
+
+    // Process materials and textures
+    model.traverse((child) => {
+        if (child.isMesh && child.material) {
+            originalMaterials.set(child.uuid, child.material.clone());
+            
+            // Handle different material types
+            if (child.material.map) {
+                child.material.map.encoding = THREE.sRGBEncoding;
+            }
+            
+            // Add basic material if none exists (common with OBJ files)
+            if (!child.material || (Array.isArray(child.material) && child.material.length === 0)) {
+                child.material = new THREE.MeshLambertMaterial({ 
+                    color: 0xcccccc,
+                    side: THREE.DoubleSide 
+                });
+            }
+            
+            child.material.needsUpdate = true;
+            child.castShadow = true;
+            child.receiveShadow = true;
+        }
+    });
+
+    // Center and scale the model
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3()).length();
+    const center = box.getCenter(new THREE.Vector3());
+
+    model.position.x -= center.x;
+    model.position.y -= center.y;
+    model.position.z -= center.z;
+
+    const scale = 5 / size;
+    model.scale.setScalar(scale);
+
+    scene.add(model);
+
+    // Update camera and controls
+    const sphere = new THREE.Sphere();
+    box.setFromObject(model);
+    box.getBoundingSphere(sphere);
+    modelBoundingRadius = sphere.radius;
+
+    const camDist = modelBoundingRadius * 2.5;
+    camera.position.set(camDist * 0.7, camDist * 0.7, camDist * 0.7);
+    camera.lookAt(0, 0, 0);
+    controls.target.set(0, 0, 0);
+    controls.update();
+
+    // Show the canvas
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('viewer-canvas').classList.remove('hidden');
+    
+    // Force render
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            resizeRenderer();
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        });
+    });
+}
+
+// Helper function for progress logging
+function logProgress(progress) {
+    const percentage = progress.lengthComputable ? 
+        Math.round((progress.loaded / progress.total) * 100) : 
+        Math.round((progress.loaded / 1024 / 1024)) + 'MB';
+    console.log('📊 Loading progress:', percentage);
 }
     
 function resizeRenderer() {
@@ -1399,7 +1482,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!files.length) return;
         
         const file = files[0];
-        const validExtensions = ['glb', 'obj', 'fbx', 'gltf'];
+        const validExtensions = ['glb', 'gltf', 'obj', 'fbx'];
         const extension = file.name.split('.').pop().toLowerCase();
         const maxSize = 50 * 1024 * 1024; // 50MB
         
