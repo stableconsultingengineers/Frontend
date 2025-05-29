@@ -1015,7 +1015,8 @@ function showModelError(message) {
     `;
     loadingElement.classList.remove('hidden');
     document.getElementById('viewer-canvas').classList.add('hidden');
-    
+}
+
 function resetCamera() {
     if (!model) return;
     const camDist = modelBoundingRadius * 2.5;
