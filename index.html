@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BIM Details - 3D Construction Details</title>
+<title>STABLE CONSULTING ENGINEERS BIM VIEWER</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -293,6 +293,123 @@ body {
     transition: width 0.3s ease;
 }
 
+/* Admin Page Styles */
+.admin-section {
+    background: #fff;
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(30, 58, 95, 0.1);
+    border-top: 4px solid #dc3545;
+}
+
+.admin-grid {
+    display: grid;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.admin-model-item {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 1rem;
+    align-items: center;
+    transition: all 0.3s;
+}
+
+.admin-model-item:hover {
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.admin-model-info h4 {
+    margin: 0 0 0.5rem 0;
+    color: #2c5074;
+}
+
+.admin-model-info p {
+    margin: 0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.admin-model-meta {
+    font-size: 0.8rem;
+    color: #999;
+    margin-top: 0.25rem;
+}
+
+.delete-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s;
+}
+
+.delete-btn:hover {
+    background: #c82333;
+}
+
+.delete-btn:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
+.view-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+}
+
+.view-btn:hover {
+    background: #218838;
+    color: white;
+    text-decoration: none;
+}
+
+.admin-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: center;
+    border-left: 4px solid #1e3a5f;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #1e3a5f;
+    margin-bottom: 0.5rem;
+}
+
+.stat-label {
+    color: #666;
+    font-size: 0.9rem;
+}
+
 /* Responsive Design */
 @media (min-width: 1920px) {
     .viewer-container {
@@ -311,6 +428,11 @@ body {
     .container { padding: 1.5rem; }
     .nav { padding: 0 1.5rem; }
     .viewer-container { gap: 1.5rem; }
+    .admin-model-item {
+        grid-template-columns: 1fr;
+        text-align: center;
+        gap: 0.5rem;
+    }
 }
 
 @media (max-width: 768px) {
@@ -329,6 +451,9 @@ body {
     .details-grid {
         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
         gap: 1rem;
+    }
+    .admin-stats {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -363,8 +488,8 @@ body {
 <!-- Home Page -->
 <div id="home-page">
     <div class="detail-header">
-        <h1 class="detail-title">3D Construction Details Library</h1>
-        <p class="info-content">Professional BIM models and construction details for architects, engineers, and contractors. Access and share three-dimensional detailed models for enhanced project visualization.</p>
+        <h1 class="detail-title">3D Details Library</h1>
+        <p class="info-content">Stable Consulting Engineers 3d Detail Viewer</p>
     </div>
 </div>
 <!-- Browse Page -->
@@ -420,6 +545,38 @@ body {
                 <button type="submit" style="background: #1e3a5f; color: white; border: none; padding: 0.8rem; border-radius: 6px; cursor: pointer; font-size: 1rem;">Upload Model</button>
             </form>
         </div>
+    </div>
+</div>
+<!-- Admin Page -->
+<div id="admin-page" class="hidden">
+    <div class="detail-header">
+        <h1 class="detail-title">🔧 Admin Panel</h1>
+        <p class="info-content">Manage and delete models from the library. Use with caution - deletions are permanent.</p>
+    </div>
+    <div class="admin-section">
+        <h3>📊 Statistics</h3>
+        <div class="admin-stats">
+            <div class="stat-card">
+                <div class="stat-number" id="total-models">-</div>
+                <div class="stat-label">Total Models</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="total-size">-</div>
+                <div class="stat-label">Total Size</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="available-files">-</div>
+                <div class="stat-label">Available Files</div>
+            </div>
+        </div>
+    </div>
+    <div class="admin-section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3>🗂️ All Models</h3>
+            <button id="refresh-admin" style="background: #28a745; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer;">🔄 Refresh</button>
+        </div>
+        <div id="admin-models-loading" class="loading" style="min-height: 200px;">Loading models...</div>
+        <div id="admin-models-grid" class="admin-grid hidden"></div>
     </div>
 </div>
 <!-- Detail Viewer Page -->
@@ -516,6 +673,9 @@ function handleRouteChange() {
         case 'upload':
             showUpload();
             break;
+        case 'admin':
+            showAdmin();
+            break;
         case 'detail':
             if (params[0]) {
                 showDetailById(params[0]);
@@ -582,6 +742,13 @@ function showUpload() {
     hideAllPages();
     document.getElementById('upload-page').classList.remove('hidden');
     document.title = 'Upload Model - BIM Details';
+}
+
+function showAdmin() {
+    hideAllPages();
+    document.getElementById('admin-page').classList.remove('hidden');
+    document.title = 'Admin Panel - BIM Details';
+    loadAdminModels();
 }
 
 function showDetail(model) {
@@ -690,6 +857,131 @@ function hideAllPages() {
     document.getElementById('detail-page').classList.add('hidden');
     document.getElementById('upload-page').classList.add('hidden');
     document.getElementById('browse-page').classList.add('hidden');
+    document.getElementById('admin-page').classList.add('hidden');
+}
+
+// ===== ADMIN FUNCTIONS =====
+async function loadAdminModels() {
+    const loadingEl = document.getElementById('admin-models-loading');
+    const gridEl = document.getElementById('admin-models-grid');
+    
+    loadingEl.classList.remove('hidden');
+    gridEl.classList.add('hidden');
+    
+    try {
+        console.log('🔄 Loading admin models...');
+        
+        const response = await fetch(`${CONFIG.API_BASE_URL}/api/models`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const models = data.models || data;
+        
+        console.log('✅ Admin models loaded:', models.length);
+        
+        // Update statistics
+        const totalSize = models.reduce((sum, model) => sum + (model.fileSize || 0), 0);
+        const availableFiles = models.filter(model => model.fileExists !== false).length;
+        
+        document.getElementById('total-models').textContent = models.length;
+        document.getElementById('total-size').textContent = totalSize > 0 ? `${(totalSize / 1024 / 1024).toFixed(1)}MB` : '0MB';
+        document.getElementById('available-files').textContent = availableFiles;
+        
+        // Clear and populate grid
+        gridEl.innerHTML = '';
+        
+        if (models.length === 0) {
+            gridEl.innerHTML = `
+                <div style="text-align: center; padding: 2rem; color: #666;">
+                    <h3>📦 No models in database</h3>
+                    <p>Upload some models to see them here.</p>
+                </div>
+            `;
+        } else {
+            models.forEach(model => {
+                const modelId = model.id || model._id;
+                const fileStatus = model.fileExists === false ? '❌ Missing' : '✅ Available';
+                const statusColor = model.fileExists === false ? '#dc3545' : '#28a745';
+                
+                const item = document.createElement('div');
+                item.className = 'admin-model-item';
+                item.innerHTML = `
+                    <div class="admin-model-info">
+                        <h4>${model.name}</h4>
+                        <p><strong>Category:</strong> ${model.category}</p>
+                        <p><strong>Description:</strong> ${model.description || 'No description'}</p>
+                        <div class="admin-model-meta">
+                            <span>ID: ${modelId}</span> • 
+                            <span>Size: ${model.fileSize ? (model.fileSize / 1024 / 1024).toFixed(1) + 'MB' : 'Unknown'}</span> • 
+                            <span>Uploaded: ${new Date(model.uploadDate).toLocaleDateString()}</span><br>
+                            <span style="color: ${statusColor}; font-weight: bold;">${fileStatus}</span>
+                        </div>
+                    </div>
+                    <a href="#detail/${modelId}" class="view-btn">👁️ View</a>
+                    <button class="delete-btn" onclick="deleteModel('${modelId}', '${model.name}')">🗑️ Delete</button>
+                `;
+                gridEl.appendChild(item);
+            });
+        }
+        
+        loadingEl.classList.add('hidden');
+        gridEl.classList.remove('hidden');
+        
+    } catch (error) {
+        console.error('❌ Error loading admin models:', error);
+        loadingEl.innerHTML = `
+            <div style="text-align: center; color: #dc3545; padding: 2rem;">
+                <h3>⚠️ Error loading models</h3>
+                <p>${error.message}</p>
+                <button onclick="loadAdminModels()" style="background: #dc3545; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer; margin-top: 1rem;">🔄 Retry</button>
+            </div>
+        `;
+    }
+}
+
+async function deleteModel(modelId, modelName) {
+    if (!confirm(`⚠️ Are you sure you want to delete "${modelName}"?\n\nThis action cannot be undone and will permanently remove:\n• The database record\n• The 3D model file\n• All associated data`)) {
+        return;
+    }
+    
+    console.log('🗑️ Deleting model:', modelId, modelName);
+    
+    // Disable the delete button to prevent multiple clicks
+    const deleteBtn = event.target;
+    deleteBtn.disabled = true;
+    deleteBtn.textContent = '⏳ Deleting...';
+    
+    try {
+        const response = await fetch(`${CONFIG.API_BASE_URL}/api/models/${modelId}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+            console.log('✅ Model deleted successfully');
+            alert(`✅ Model "${modelName}" has been deleted successfully.`);
+            
+            // Remove from cache if present
+            modelsCache = modelsCache.filter(model => (model.id || model._id) !== modelId);
+            
+            // Reload the admin page
+            loadAdminModels();
+        } else {
+            throw new Error(result.error || `HTTP ${response.status}`);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error deleting model:', error);
+        alert(`❌ Failed to delete model: ${error.message}`);
+        
+        // Re-enable the button
+        deleteBtn.disabled = false;
+        deleteBtn.textContent = '🗑️ Delete';
+    }
 }
 
 // ===== API FUNCTIONS FOR MONGODB BACKEND =====
@@ -803,11 +1095,12 @@ function init3DViewer() {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.0;
 
-    // Add OrbitControls
+    // Add OrbitControls with disabled panning
     controls = new THREE.OrbitControls(camera, canvas);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.screenSpacePanning = false;
+    controls.enablePan = false; // 🔥 DISABLE PANNING - only zoom and rotate allowed
     controls.minDistance = 1;
     controls.maxDistance = 50;
     controls.maxPolarAngle = Math.PI;
@@ -1065,7 +1358,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const filePreview = document.getElementById('file-preview');
     const fileName = document.getElementById('file-name');
     const removeFileBtn = document.getElementById('remove-file');
+    const refreshAdminBtn = document.getElementById('refresh-admin');
     let selectedFile = null;
+
+    // Admin refresh button
+    if (refreshAdminBtn) {
+        refreshAdminBtn.addEventListener('click', loadAdminModels);
+    }
 
     // Show file dialog on click
     uploadZone.addEventListener('click', () => {
