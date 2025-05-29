@@ -847,6 +847,7 @@ function load3DModel(filePath) {
     
     clearScene();
     
+    // Add lighting
     const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
     scene.add(ambientLight);
     
@@ -861,62 +862,112 @@ function load3DModel(filePath) {
     fillLight.position.set(-10, -10, -5);
     scene.add(fillLight);
 
+    // 🔥 FIX: Properly construct the model URL
+    // Remove leading slash if present to avoid double slashes
+    const cleanFilePath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
+    const modelUrl = `${CONFIG.API_BASE_URL}/${cleanFilePath}`;
+    
+    console.log('🔄 Loading model from:', modelUrl);
+    console.log('📁 Original file path:', filePath);
+    console.log('🔧 Backend URL:', CONFIG.API_BASE_URL);
+
     const loader = new THREE.GLTFLoader();
-    loader.load(filePath, function(gltf) {
-        model = gltf.scene;
-
-        model.traverse((child) => {
-            if (child.isMesh && child.material) {
-                originalMaterials.set(child.uuid, child.material.clone());
-                if (child.material.map) {
-                    child.material.map.encoding = THREE.sRGBEncoding;
-                }
-                child.material.needsUpdate = true;
+    
+    // First, check if the file exists by making a HEAD request
+    fetch(modelUrl, { method: 'HEAD' })
+        .then(response => {
+            console.log('📡 File check response:', response.status);
+            
+            if (!response.ok) {
+                throw new Error(`File not accessible: ${response.status} ${response.statusText}`);
             }
-        });
+            
+            console.log('✅ File exists, proceeding with 3D loading...');
+            
+            // File exists, proceed with loading
+            loader.load(modelUrl, 
+                function(gltf) {
+                    // SUCCESS - Model loaded
+                    console.log('✅ 3D Model loaded successfully');
+                    model = gltf.scene;
 
-        const box = new THREE.Box3().setFromObject(model);
-        const size = box.getSize(new THREE.Vector3()).length();
-        const center = box.getCenter(new THREE.Vector3());
+                    model.traverse((child) => {
+                        if (child.isMesh && child.material) {
+                            originalMaterials.set(child.uuid, child.material.clone());
+                            if (child.material.map) {
+                                child.material.map.encoding = THREE.sRGBEncoding;
+                            }
+                            child.material.needsUpdate = true;
+                        }
+                    });
 
-        model.position.x -= center.x;
-        model.position.y -= center.y;
-        model.position.z -= center.z;
+                    const box = new THREE.Box3().setFromObject(model);
+                    const size = box.getSize(new THREE.Vector3()).length();
+                    const center = box.getCenter(new THREE.Vector3());
 
-        const scale = 5 / size;
-        model.scale.setScalar(scale);
+                    model.position.x -= center.x;
+                    model.position.y -= center.y;
+                    model.position.z -= center.z;
 
-        scene.add(model);
+                    const scale = 5 / size;
+                    model.scale.setScalar(scale);
 
-        const sphere = new THREE.Sphere();
-        box.setFromObject(model);
-        box.getBoundingSphere(sphere);
-        modelBoundingRadius = sphere.radius;
+                    scene.add(model);
 
-        const camDist = modelBoundingRadius * 2.5;
-        camera.position.set(camDist * 0.7, camDist * 0.7, camDist * 0.7);
-        camera.lookAt(0, 0, 0);
-        controls.target.set(0, 0, 0);
-        controls.update();
+                    const sphere = new THREE.Sphere();
+                    box.setFromObject(model);
+                    box.getBoundingSphere(sphere);
+                    modelBoundingRadius = sphere.radius;
 
-        document.getElementById('loading').classList.add('hidden');
-        canvas.classList.remove('hidden');
-        
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                resizeRenderer();
-                if (renderer && scene && camera) {
-                    renderer.render(scene, camera);
+                    const camDist = modelBoundingRadius * 2.5;
+                    camera.position.set(camDist * 0.7, camDist * 0.7, camDist * 0.7);
+                    camera.lookAt(0, 0, 0);
+                    controls.target.set(0, 0, 0);
+                    controls.update();
+
+                    document.getElementById('loading').classList.add('hidden');
+                    canvas.classList.remove('hidden');
+                    
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            resizeRenderer();
+                            if (renderer && scene && camera) {
+                                renderer.render(scene, camera);
+                            }
+                        });
+                    });
+                }, 
+                function(progress) {
+                    // PROGRESS
+                    const percentage = progress.lengthComputable ? 
+                        Math.round((progress.loaded / progress.total) * 100) : 
+                        Math.round((progress.loaded / 1024 / 1024)) + 'MB';
+                    console.log('📊 Loading progress:', percentage);
+                }, 
+                function(error) {
+                    // ERROR during 3D loading
+                    console.error('❌ Error loading 3D model:', error);
+                    showModelError('Failed to load 3D model. The file may be corrupted or in an unsupported format.');
                 }
-            });
+            );
+        })
+        .catch(error => {
+            // File doesn't exist or network error
+            console.error('❌ Model file not accessible:', error);
+            console.error('❌ Attempted URL:', modelUrl);
+            
+            // Try to get more info about why it failed
+            fetch(modelUrl)
+                .then(response => response.json())
+                .catch(() => ({}))
+                .then(errorInfo => {
+                    const message = errorInfo.message || 
+                        'The 3D model file is no longer available. It may have been removed during server maintenance on Render\'s free tier.';
+                    showModelError(message);
+                });
         });
-        
-    }, undefined, function(error) {
-        console.error('Error loading 3D model:', error);
-        document.getElementById('loading').textContent = 'Failed to load 3D model.';
-    });
 }
-
+    
 function resizeRenderer() {
     const canvas = document.getElementById('viewer-canvas');
     const container = document.querySelector('.model-viewer');
@@ -937,6 +988,34 @@ function resizeRenderer() {
     }
 }
 
+function showModelError(message) {
+    const loadingElement = document.getElementById('loading');
+    loadingElement.innerHTML = `
+        <div style="text-align: center; color: #dc3545; padding: 2rem;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
+            <h3>3D Model Unavailable</h3>
+            <p style="margin: 1rem 0; line-height: 1.5;">${message}</p>
+            <div style="margin-top: 2rem;">
+                <button onclick="navigateTo('browse')" style="background: #1e3a5f; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer; margin: 0.5rem;">
+                    ← Back to Browse
+                </button>
+                <button onclick="location.reload()" style="background: #28a745; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer; margin: 0.5rem;">
+                    🔄 Retry
+                </button>
+            </div>
+            <details style="margin-top: 1rem; text-align: left; max-width: 500px; margin-left: auto; margin-right: auto;">
+                <summary style="cursor: pointer; color: #666;">🔧 Technical Details</summary>
+                <p style="margin-top: 0.5rem; font-size: 0.9rem; color: #666; background: #f8f9fa; padding: 1rem; border-radius: 4px;">
+                    <strong>Backend:</strong> ${CONFIG.API_BASE_URL}<br>
+                    <strong>Issue:</strong> Files on Render's free tier are ephemeral and get deleted when the server restarts.<br>
+                    <strong>Solution:</strong> Re-upload the model or upgrade to persistent storage.
+                </p>
+            </details>
+        </div>
+    `;
+    loadingElement.classList.remove('hidden');
+    document.getElementById('viewer-canvas').classList.add('hidden');
+    
 function resetCamera() {
     if (!model) return;
     const camDist = modelBoundingRadius * 2.5;
